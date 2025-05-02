@@ -1,6 +1,4 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
+// Package cmd: main command package
 package cmd
 
 import (
