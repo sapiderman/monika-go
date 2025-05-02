@@ -21,6 +21,12 @@ var configCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(configCmd)
 
+	err := readConfigFile()
+	if err != nil {
+		fmt.Printf("Error reading config file, %s", err)
+		return
+	}
+
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
