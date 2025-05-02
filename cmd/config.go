@@ -39,6 +39,11 @@ func init() {
 }
 
 func readConfigFile() error {
+
+	// Set the default values
+
+	viper.SetDefault("app.version", "0.0.1")
+
 	// read config file
 	viper.SetConfigName("monika") // name of config file (without extension)
 	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name

@@ -48,7 +48,7 @@ jobs:
       run: go test -v ./... -race -covermode=atomic -coverprofile=coverage.out
 
     - name: Build image
-      run: go build -v main.go
+      run: go build -a -ldflags '-extldflags "-static"' -o monika-go main.go
 
     - name: Build docker
-      run: docker build . --file .docker/Dockerfile -t monika-go:$(date +%s)
+      run: docker build . --file ./Dockerfile -t monika-go:$(date +%s)
