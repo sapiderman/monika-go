@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // configCmd represents the config command
@@ -20,13 +19,6 @@ var configCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(configCmd)
-
-	err := readConfigFile()
-	if err != nil {
-		fmt.Printf("Error reading config file, %s", err)
-		return
-	}
-
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
@@ -36,24 +28,4 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// configCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-func readConfigFile() error {
-
-	// Set the default values
-
-	viper.SetDefault("app.version", "0.0.1")
-
-	// read config file
-	viper.SetConfigName("monika") // name of config file (without extension)
-	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
-	viper.AddConfigPath(".")      // optionally look for config in the working directory
-	// viper.AddConfigPath("$HOME/.monika")   // adding home directory as first search path
-	// viper.AddConfigPath("/etc/appname/")  // path to look for the config file in
-	// err := viper.ReadInConfig() // Find and read the config file
-	// if err != nil { // Handle errors reading the config file
-	// 	fmt.Printf("Error reading config file, %s", err)
-	// }
-
-	return nil
 }

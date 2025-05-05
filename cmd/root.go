@@ -11,7 +11,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "monika-go",
 	Short: "Monika command line monitoring tool",
-	Long:  `Monika-go is the golang port of the command line monitoring tool.`,
+	Long:  `Monika-go is the golang port of the Monika command line monitoring tool.`,
 
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
