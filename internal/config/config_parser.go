@@ -57,10 +57,7 @@ type Notification struct {
 	Data map[string]interface{} `mapstructure:"data"`
 }
 
-func init() {
-
-}
-
+// Removed the empty init function as it adds no behavior.
 func LoadDefaultConfig() error {
 	// Set the default values
 	viper.SetDefault("app.version", "0.0.1") // Set the default values
