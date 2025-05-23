@@ -9,7 +9,7 @@ import (
 )
 
 func InitLogger() {
-	// Set the log level to info
+	// Set the log level
 	logrus.SetLevel(logrus.DebugLevel)
 
 	// Set the log format to JSON
