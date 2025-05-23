@@ -2,14 +2,30 @@
 # For complete documentation on configuration check https://monika.hyperjump.tech/guides/probes
 # Monika can run by its minimal configuration such as :
 probes:
-  - id: '1'
-    name: GitHub
-    description: Multiple
+  - id: github
+    name: GitHub-test
+    description: Github test
     requests:
       - url: https://github.com
         timeout: 7000
       - url: https://github.com/hyperjump
         timeout: 7000
+
+  - id: google
+    name: google-test
+    description: Google.com
+    requests:
+      - url: https://google.com
+        timeout: 7000
+    
+  - id: httpbin
+    name: httpbin
+    description: httpbin rest test
+    requests:
+      - url: https://httpbin.org/status/200
+        method: GET
+        timeout: 7000
+
 # Configuration example for sending HTML Form Submission
 # Using this configuration Monika will send a POST request to http://www.foo.com/login.php
 # with the defined headers and request's body.
@@ -193,9 +209,7 @@ probes:
 #       apiKey: YOUR_INSTATUS_API_KEY
 #       pageID: YOUR_INSTATUS_PAGE_ID
 
-# limit log database size in bytes
-db_limit:
-  max_db_size: 1000000000
-  deleted_data: 1
-  cron_schedule: '*/1 * * * *'
-# status-notification: 0 6 * * *
+notifications:
+  - id: desktop-01
+    type: desktop
+   

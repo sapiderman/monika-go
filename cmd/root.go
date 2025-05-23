@@ -2,8 +2,12 @@
 package cmd
 
 import (
+	"monika-go/internal/config"
 	"os"
 
+	"monika-go/internal/logger"
+
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +32,17 @@ func Execute() {
 }
 
 func init() {
-	// config default configs
+
+	// Initialize the logger
+	logger.InitLogger()
+	logrus.Info("root....")
+
+	err := config.LoadDefaultConfig()
+	if err != nil {
+		// handle error
+		logrus.Errorf("Error parsing config file: %v", err)
+		os.Exit(1)
+	}
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
@@ -38,5 +52,5 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
