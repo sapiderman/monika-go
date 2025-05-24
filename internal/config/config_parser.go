@@ -1,4 +1,4 @@
-// Package config does teh actual config parsing
+// Package config does the	 actual config parsing
 package config
 
 import (
@@ -55,10 +55,6 @@ type Notification struct {
 	ID   string                 `mapstructure:"id"`
 	Type string                 `mapstructure:"type"`
 	Data map[string]interface{} `mapstructure:"data"`
-}
-
-func init() {
-
 }
 
 func LoadDefaultConfig() error {
