@@ -3,7 +3,7 @@
 {
 	"name": "monika-go-devcontainer",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/go:1.24-bookworm",
+	"image": "mcr.microsoft.com/devcontainers/go:1.26-bookworm",
 	// "dockerComposeFile": "docker-compose.yaml",
 	// "workspaceFolder": "/workspace",
 	"features": {
