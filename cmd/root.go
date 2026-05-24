@@ -7,46 +7,44 @@ import (
 	"monika-go/internal/config"
 	"monika-go/internal/logger"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-var (
-	cfgFile string
-	cfg     *config.Config
-)
+var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "monika-go",
 	Short: "Monika command line monitoring tool",
 	Long:  `Monika-go is the golang port of the Monika command line monitoring tool.`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		parsed, err := config.Parse(cfgFile)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		log := logger.New("root")
+		cfg, err := config.Load(cfgFile)
 		if err != nil {
-			return fmt.Errorf("loading config: %w", err)
+			return fmt.Errorf("config: %w", err)
 		}
-		if err := config.Validate(parsed); err != nil {
-			return fmt.Errorf("validating config: %w", err)
-		}
-		cfg = parsed
-		logrus.Infof("Config loaded: %s (%d probes)", cfgFile, len(cfg.Probes))
-		return nil
+		log.Info("config loaded", logger.F("source", cfgFile), logger.F("probes", len(cfg.Probes)))
+		return run(cfg, log)
 	},
 }
 
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		logrus.Errorf("Error: %v", err)
-		os.Exit(1)
-	}
+// run is the entry point for the prober engine.
+// It is extracted from the cobra command so it can be tested independently.
+func run(cfg *config.Config, log logger.Logger) error {
+	_ = cfg
+	_ = log
+	// TODO: build and start prober engine from config
+	return nil
 }
 
-func init() {
-	// Initialize the logger
+func Execute() {
 	logger.InitLogger()
-	logrus.Info("root....")
+	log := logger.New("root")
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "monika.yaml", "config file path")
+
+	if err := rootCmd.Execute(); err != nil {
+		log.Error("fatal", logger.Err(err))
+		os.Exit(1)
+	}
 }

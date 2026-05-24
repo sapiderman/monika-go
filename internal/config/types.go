@@ -1,5 +1,7 @@
 package config
 
+import "monika-go/internal/assertion"
+
 // Config represents the top-level monika.yaml configuration.
 type Config struct {
 	Probes        []Probe        `yaml:"probes"`
@@ -7,24 +9,34 @@ type Config struct {
 }
 
 // Probe represents a single monitoring target.
-// Exactly one of Requests, Ping, Socket, Mongo, Redis, Postgres, MariaDB must be set.
+// Spec is populated by UnmarshalYAML and is always non-nil after successful parse.
 type Probe struct {
-	ID                string      `yaml:"id"`
-	Name              string      `yaml:"name"`
-	Description       string      `yaml:"description"`
-	Interval          int         `yaml:"interval"`
-	IncidentThreshold int         `yaml:"incidentThreshold"`
-	RecoveryThreshold int         `yaml:"recoveryThreshold"`
-	Alerts            []Alert     `yaml:"alerts"`
-	Requests          *[]Request  `yaml:"requests"`
-	Ping              *[]Ping     `yaml:"ping"`
-	Socket            *[]Socket   `yaml:"socket"`
-	Mongo             *[]MongoDB  `yaml:"mongo"`
-	Redis             *[]Redis    `yaml:"redis"`
-	Postgres          *[]Postgres `yaml:"postgres"`
-	MariaDB           *[]MariaDB  `yaml:"mariadb"`
-	MySQL             *[]MariaDB  `yaml:"mysql"` // MySQL shares schema with MariaDB
+	ID                string    `yaml:"id"`
+	Name              string    `yaml:"name"`
+	Description       string    `yaml:"description"`
+	Interval          int       `yaml:"interval"`
+	IncidentThreshold int       `yaml:"incidentThreshold"`
+	RecoveryThreshold int       `yaml:"recoveryThreshold"`
+	Alerts            []Alert   `yaml:"alerts"`
+	Spec              ProbeSpec `yaml:"-"` // set by UnmarshalYAML
 }
+
+// RequestBody represents an HTTP request body.
+// At YAML parse time, only string (raw text/XML/JSON) and
+// mapping (form-encoded key-value pairs) are accepted.
+type RequestBody struct {
+	text string
+	form map[string]any
+}
+
+// IsText reports whether the body is a raw text string.
+func (b RequestBody) IsText() bool { return b.form == nil && b.text != "" }
+
+// Text returns the body as a string. Empty if not a text body.
+func (b RequestBody) Text() string { return b.text }
+
+// Form returns the body as form-encoded key-value pairs. Nil if not a form body.
+func (b RequestBody) Form() map[string]any { return b.form }
 
 // Request represents a single HTTP request within a probe.
 type Request struct {
@@ -35,7 +47,7 @@ type Request struct {
 	AllowUnauthorized bool              `yaml:"allowUnauthorized"`
 	FollowRedirects   int               `yaml:"followRedirects"`
 	Headers           map[string]string `yaml:"headers"`
-	Body              any               `yaml:"body"`
+	Body              RequestBody       `yaml:"body"`
 	Alerts            []Alert           `yaml:"alerts"`
 	Interval          int               `yaml:"interval"`
 }
@@ -92,9 +104,9 @@ type MariaDB struct {
 
 // Alert defines an assertion that triggers a notification.
 type Alert struct {
-	ID        string `yaml:"id"`
-	Assertion string `yaml:"assertion"`
-	Message   string `yaml:"message"`
+	ID        string                `yaml:"id"`
+	Assertion *assertion.Assertion  `yaml:"assertion"`
+	Message   string                `yaml:"message"`
 }
 
 // Notification represents a notification channel configuration.

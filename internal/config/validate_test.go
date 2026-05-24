@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+func ptrSlice[T any](s ...T) *[]T { return &s }
+
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -15,12 +17,7 @@ func TestValidate(t *testing.T) {
 			name: "valid config",
 			config: Config{
 				Probes: []Probe{
-					{
-						ID: "1",
-						Requests: &[]Request{
-							{URL: "https://example.com"},
-						},
-					},
+					{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "https://example.com"}}}},
 				},
 			},
 			wantErr: "",
@@ -29,7 +26,7 @@ func TestValidate(t *testing.T) {
 			name: "valid config with ping probe",
 			config: Config{
 				Probes: []Probe{
-					{ID: "p1", Ping: &[]Ping{{URI: "https://example.com"}}},
+					{ID: "p1", Spec: &PingSpec{Targets: []Ping{{URI: "https://example.com"}}}},
 				},
 			},
 			wantErr: "",
@@ -38,7 +35,7 @@ func TestValidate(t *testing.T) {
 			name: "valid config with socket probe",
 			config: Config{
 				Probes: []Probe{
-					{ID: "s1", Socket: &[]Socket{{Host: "localhost", Port: 8080, Data: "ping"}}},
+					{ID: "s1", Spec: &SocketSpec{Targets: []Socket{{Host: "localhost", Port: 8080, Data: "ping"}}}},
 				},
 			},
 			wantErr: "",
@@ -47,10 +44,10 @@ func TestValidate(t *testing.T) {
 			name: "valid config with database probes",
 			config: Config{
 				Probes: []Probe{
-					{ID: "m1", Mongo: &[]MongoDB{{URI: "mongodb://localhost:27017"}}},
-					{ID: "r1", Redis: &[]Redis{{URI: "redis://localhost:6379"}}},
-					{ID: "pg1", Postgres: &[]Postgres{{URI: "postgres://localhost:5432/db"}}},
-					{ID: "maria1", MariaDB: &[]MariaDB{{URI: "mariadb://localhost:3306/db"}}},
+					{ID: "m1", Spec: &MongoDBSpec{Targets: []MongoDB{{URI: "mongodb://localhost:27017"}}}},
+					{ID: "r1", Spec: &RedisSpec{Targets: []Redis{{URI: "redis://localhost:6379"}}}},
+					{ID: "pg1", Spec: &PostgresSpec{Targets: []Postgres{{URI: "postgres://localhost:5432/db"}}}},
+					{ID: "maria1", Spec: &MariaDBSpec{Targets: []MariaDB{{URI: "mariadb://localhost:3306/db"}}}},
 				},
 			},
 			wantErr: "",
@@ -60,15 +57,12 @@ func TestValidate(t *testing.T) {
 			config: Config{
 				Probes: []Probe{
 					{
-						ID: "multi-1",
-						Requests: &[]Request{
-							{URL: "https://example.com/api"},
-							{URL: "https://example.com/health"},
-						},
+						ID:   "multi-1",
+						Spec: &HTTPSpec{Requests: []Request{{URL: "https://example.com/api"}, {URL: "https://example.com/health"}}},
 					},
 					{
-						ID: "multi-2",
-						Ping: &[]Ping{{URI: "https://example.com"}},
+						ID:   "multi-2",
+						Spec: &PingSpec{Targets: []Ping{{URI: "https://example.com"}}},
 					},
 				},
 			},
@@ -83,9 +77,7 @@ func TestValidate(t *testing.T) {
 			name: "missing probe id",
 			config: Config{
 				Probes: []Probe{
-					{
-						Requests: &[]Request{{URL: "https://example.com"}},
-					},
+					{Spec: &HTTPSpec{Requests: []Request{{URL: "https://example.com"}}}},
 				},
 			},
 			wantErr: "probe at index 0: id is required",
@@ -94,8 +86,8 @@ func TestValidate(t *testing.T) {
 			name: "duplicate probe id",
 			config: Config{
 				Probes: []Probe{
-					{ID: "1", Requests: &[]Request{{URL: "https://example.com"}}},
-					{ID: "1", Requests: &[]Request{{URL: "https://example.com"}}},
+					{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "https://example.com"}}}},
+					{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "https://example.com"}}}},
 				},
 			},
 			wantErr: `duplicate probe id: "1"`,
@@ -107,26 +99,13 @@ func TestValidate(t *testing.T) {
 					{ID: "1"},
 				},
 			},
-			wantErr: `probe "1": must have exactly one probe type, got 0`,
-		},
-		{
-			name: "multiple probe types",
-			config: Config{
-				Probes: []Probe{
-					{
-						ID:       "1",
-						Requests: &[]Request{{URL: "https://example.com"}},
-						Ping:     &[]Ping{{URI: "https://example.com"}},
-					},
-				},
-			},
-			wantErr: `probe "1": must have exactly one probe type, got 2`,
+			wantErr: `probe "1": must specify exactly one probe type`,
 		},
 		{
 			name: "missing request url",
 			config: Config{
 				Probes: []Probe{
-					{ID: "1", Requests: &[]Request{{Method: "GET"}}},
+					{ID: "1", Spec: &HTTPSpec{Requests: []Request{{Method: "GET"}}}},
 				},
 			},
 			wantErr: `probe "1": request at index 0: url is required`,
@@ -135,7 +114,7 @@ func TestValidate(t *testing.T) {
 			name: "missing ping uri",
 			config: Config{
 				Probes: []Probe{
-					{ID: "1", Ping: &[]Ping{{}}},
+					{ID: "1", Spec: &PingSpec{Targets: []Ping{{}}}},
 				},
 			},
 			wantErr: `probe "1": ping at index 0: uri is required`,
@@ -144,7 +123,7 @@ func TestValidate(t *testing.T) {
 			name: "invalid socket",
 			config: Config{
 				Probes: []Probe{
-					{ID: "1", Socket: &[]Socket{{Host: "localhost"}}}, // missing port, data
+					{ID: "1", Spec: &SocketSpec{Targets: []Socket{{Host: "localhost"}}}},
 				},
 			},
 			wantErr: `probe "1": socket at index 0: host, port, and data are required`,
@@ -153,7 +132,7 @@ func TestValidate(t *testing.T) {
 			name: "missing probe alert assertion",
 			config: Config{
 				Probes: []Probe{
-					{ID: "1", Requests: &[]Request{{URL: "http://a.com"}}, Alerts: []Alert{{Message: "bad"}}},
+					{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}, Alerts: []Alert{{Message: "bad"}}},
 				},
 			},
 			wantErr: `probe "1": alert at index 0: assertion is required`,
@@ -162,7 +141,7 @@ func TestValidate(t *testing.T) {
 			name: "missing request alert assertion",
 			config: Config{
 				Probes: []Probe{
-					{ID: "1", Requests: &[]Request{{URL: "http://a.com", Alerts: []Alert{{Message: "bad"}}}}},
+					{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com", Alerts: []Alert{{Message: "bad"}}}}}},
 				},
 			},
 			wantErr: `probe "1": request at index 0: alert at index 0: assertion is required`,
@@ -170,20 +149,16 @@ func TestValidate(t *testing.T) {
 		{
 			name: "unknown notification type",
 			config: Config{
-				Probes: []Probe{{ID: "1", Requests: &[]Request{{URL: "http://a.com"}}}},
-				Notifications: []Notification{
-					{ID: "n1", Type: "carrier_pigeon"},
-				},
+				Probes:        []Probe{{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}}},
+				Notifications: []Notification{{ID: "n1", Type: "carrier_pigeon"}},
 			},
 			wantErr: `notification "n1": unknown type "carrier_pigeon"`,
 		},
 		{
 			name: "notification with empty id",
 			config: Config{
-				Probes: []Probe{{ID: "1", Requests: &[]Request{{URL: "http://a.com"}}}},
-				Notifications: []Notification{
-					{Type: "slack"},
-				},
+				Probes:        []Probe{{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}}},
+				Notifications: []Notification{{Type: "slack"}},
 			},
 			wantErr: "notification at index 0: id is required",
 		},
