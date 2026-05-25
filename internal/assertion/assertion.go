@@ -3,6 +3,7 @@
 package assertion
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 // ProbeResult carries the response fields that assertions can reference.
 type ProbeResult struct {
+	Err          error             // nil if request succeeded
 	Status       int               // HTTP status code
 	ResponseTime int64             // round-trip time in milliseconds
 	BodySize     int64             // response body size in bytes
@@ -89,7 +91,8 @@ func Parse(expr string) (*Assertion, error) {
 
 	a := &Assertion{raw: expr, field: field, op: operator, kind: kind, num: num, str: str, hKey: hKey}
 
-	if err := a.typeCheck(); err != nil {
+	err = a.typeCheck()
+	if err != nil {
 		return nil, err
 	}
 
@@ -107,6 +110,9 @@ func MustParse(expr string) *Assertion {
 
 // Evaluate returns true when the assertion holds for the given probe result.
 func (a *Assertion) Evaluate(r ProbeResult) bool {
+	if r.Err != nil {
+		return false
+	}
 	switch a.field {
 	case lhsStatus:
 		return cmpInt(int64(r.Status), a.op, a.num)
@@ -141,20 +147,20 @@ func (a *Assertion) UnmarshalYAML(unmarshal func(any) error) error {
 
 // --- internal helpers ---------------------------------------------------------
 
-func lex(expr string) (lhs, op, rhs string, err error) {
+func lex(expr string) (string, string, string, error) {
 	for _, candidate := range []string{"<=", ">=", "!=", "==", "<", ">"} {
 		idx := strings.Index(expr, candidate)
 		if idx < 0 {
 			continue
 		}
-		lhs = strings.TrimSpace(expr[:idx])
-		rhs = strings.TrimSpace(expr[idx+len(candidate):])
-		if lhs == "" || rhs == "" {
-			return "", "", "", fmt.Errorf("incomplete expression")
+		lhsStr := strings.TrimSpace(expr[:idx])
+		rhsStr := strings.TrimSpace(expr[idx+len(candidate):])
+		if lhsStr == "" || rhsStr == "" {
+			return "", "", "", errors.New("incomplete expression")
 		}
-		return lhs, candidate, rhs, nil
+		return lhsStr, candidate, rhsStr, nil
 	}
-	return "", "", "", fmt.Errorf("no valid operator found (supported: ==, !=, <, >, <=, >=)")
+	return "", "", "", errors.New("no valid operator found (supported: ==, !=, <, >, <=, >=)")
 }
 
 func parseLHS(s string) (lhs, string, error) {
@@ -171,11 +177,13 @@ func parseLHS(s string) (lhs, string, error) {
 	if strings.HasPrefix(s, `response.headers["`) && strings.HasSuffix(s, `"]`) {
 		key := s[len(`response.headers["`) : len(s)-2]
 		if key == "" {
-			return 0, "", fmt.Errorf("header key must not be empty")
+			return 0, "", errors.New("header key must not be empty")
 		}
 		return lhsHeader, strings.ToLower(key), nil
 	}
-	return 0, "", fmt.Errorf("unknown field %q (valid: response.status, response.time, response.size, response.body, response.headers[\"key\"])", s)
+	return 0, "", fmt.Errorf("unknown field %q (valid: "+
+		"response.status, response.time, response.size, response.body, "+
+		"response.headers[\"key\"])", s)
 }
 
 func parseOp(s string) (op, error) {
@@ -262,6 +270,9 @@ func cmpStr(got string, operator op, rhs string) bool {
 		return got == rhs
 	case opNe:
 		return got != rhs
+	case opLt, opGt, opLte, opGte:
+		return false
+	default:
+		return false
 	}
-	return false
 }

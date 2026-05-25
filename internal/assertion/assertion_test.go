@@ -1,3 +1,4 @@
+//nolint:testpackage // needs to test internal/unexported components
 package assertion
 
 import "testing"
@@ -18,11 +19,11 @@ func TestParse(t *testing.T) {
 		{`response.headers["content-type"] == "application/json"`, false},
 		{"response.size == 1024", false},
 		// errors
-		{"", true},                              // empty
-		{"response.stats != 200", true},         // typo
-		{"response.status ~= 200", true},         // bad operator
-		{`response.body > "ok"`, true},           // > on string
-		{"response.status == ok", true},          // non-numeric rhs for int field
+		{"", true},                       // empty
+		{"response.stats != 200", true},  // typo
+		{"response.status ~= 200", true}, // bad operator
+		{`response.body > "ok"`, true},   // > on string
+		{"response.status == ok", true},  // non-numeric rhs for int field
 	}
 
 	for _, tt := range tests {
@@ -83,9 +84,21 @@ func TestEvaluate_String(t *testing.T) {
 		{`response.body == "ok"`, ProbeResult{Body: "ok"}, true},
 		{`response.body == "ok"`, ProbeResult{Body: "error"}, false},
 		{`response.body != "error"`, ProbeResult{Body: "ok"}, true},
-		{`response.headers["content-type"] == "application/json"`, ProbeResult{Headers: map[string]string{"content-type": "application/json"}}, true},
-		{`response.headers["content-type"] != "text/html"`, ProbeResult{Headers: map[string]string{"content-type": "application/json"}}, true},
-		{`response.headers["x-missing"] == "nothing"`, ProbeResult{Headers: map[string]string{}}, false},
+		{
+			`response.headers["content-type"] == "application/json"`,
+			ProbeResult{Headers: map[string]string{"content-type": "application/json"}},
+			true,
+		},
+		{
+			`response.headers["content-type"] != "text/html"`,
+			ProbeResult{Headers: map[string]string{"content-type": "application/json"}},
+			true,
+		},
+		{
+			`response.headers["x-missing"] == "nothing"`,
+			ProbeResult{Headers: map[string]string{}},
+			false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -107,3 +120,28 @@ func TestMustParse(t *testing.T) {
 	}()
 	MustParse("response.stats != 200")
 }
+
+func TestEvaluate_WithError(t *testing.T) {
+	tests := []struct {
+		expr   string
+		result ProbeResult
+	}{
+		{"response.status == 200", ProbeResult{Err: someError{}, Status: 200}},
+		{"response.status != 200", ProbeResult{Err: someError{}, Status: 500}},
+		{"response.time < 100", ProbeResult{Err: someError{}, ResponseTime: 50}},
+		{`response.body == "ok"`, ProbeResult{Err: someError{}, Body: "ok"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expr, func(t *testing.T) {
+			a := MustParse(tt.expr)
+			if got := a.Evaluate(tt.result); got {
+				t.Errorf("Evaluate(%+v) = %v, want false because of non-nil Err", tt.result, got)
+			}
+		})
+	}
+}
+
+type someError struct{}
+
+func (someError) Error() string { return "some error" }
