@@ -31,14 +31,34 @@ func NewProber(spec config.ProbeSpec) Prober {
 		if httpSpec, ok := spec.(*config.HTTPSpec); ok {
 			return NewHTTPProber(httpSpec)
 		}
-	case config.KindPing,
-		config.KindSocket,
-		config.KindMongoDB,
-		config.KindRedis,
-		config.KindPostgres,
-		config.KindMariaDB,
-		config.KindMySQL:
-		return nil
+	case config.KindPing:
+		if pingSpec, ok := spec.(*config.PingSpec); ok {
+			return NewPingProber(pingSpec)
+		}
+	case config.KindSocket:
+		if socketSpec, ok := spec.(*config.SocketSpec); ok {
+			return NewSocketProber(socketSpec)
+		}
+	case config.KindMongoDB:
+		if mongoSpec, ok := spec.(*config.MongoDBSpec); ok {
+			return NewMongoProber(mongoSpec)
+		}
+	case config.KindRedis:
+		if redisSpec, ok := spec.(*config.RedisSpec); ok {
+			return NewRedisProber(redisSpec)
+		}
+	case config.KindPostgres:
+		if postgresSpec, ok := spec.(*config.PostgresSpec); ok {
+			return NewPostgresProber(postgresSpec)
+		}
+	case config.KindMariaDB:
+		if mariaSpec, ok := spec.(*config.MariaDBSpec); ok {
+			return NewMariaDBProber(mariaSpec)
+		}
+	case config.KindMySQL:
+		if mysqlSpec, ok := spec.(*config.MySQLSpec); ok {
+			return NewMySQLProber(mysqlSpec)
+		}
 	default:
 		return nil
 	}

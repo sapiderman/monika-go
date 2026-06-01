@@ -104,9 +104,9 @@ type MariaDB struct {
 
 // Alert defines an assertion that triggers a notification.
 type Alert struct {
-	ID        string                `yaml:"id"`
-	Assertion *assertion.Assertion  `yaml:"assertion"`
-	Message   string                `yaml:"message"`
+	ID        string               `yaml:"id"`
+	Assertion *assertion.Assertion `yaml:"assertion"`
+	Message   string               `yaml:"message"`
 }
 
 // Notification represents a notification channel configuration.

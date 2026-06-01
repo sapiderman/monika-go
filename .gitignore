@@ -61,4 +61,7 @@ go.work
 ## ignore image
 monika-go
 
+# ignore agy
+.antigravity*
+
 # End of https://www.toptal.com/developers/gitignore/api/linux,visualstudiocode,go

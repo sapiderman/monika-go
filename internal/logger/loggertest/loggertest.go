@@ -12,10 +12,10 @@ import (
 // NopLogger discards all log output.
 type NopLogger struct{}
 
-func (NopLogger) Info(string, ...logger.Field)  {}
-func (NopLogger) Warn(string, ...logger.Field)  {}
-func (NopLogger) Error(string, ...logger.Field) {}
-func (NopLogger) Debug(string, ...logger.Field) {}
+func (NopLogger) Info(string, ...logger.Field)       {}
+func (NopLogger) Warn(string, ...logger.Field)       {}
+func (NopLogger) Error(string, ...logger.Field)      {}
+func (NopLogger) Debug(string, ...logger.Field)      {}
 func (NopLogger) With(...logger.Field) logger.Logger { return NopLogger{} }
 
 // CaptureEntry is a single recorded log entry.

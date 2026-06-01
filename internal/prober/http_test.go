@@ -26,11 +26,11 @@ func TestNewProber(t *testing.T) {
 		t.Errorf("NewProber for HTTPSpec did not return an HTTPProber")
 	}
 
-	// Unsupported spec
+	// PingSpec is supported now
 	pingSpec := &config.PingSpec{}
 	p2 := NewProber(pingSpec)
-	if p2 != nil {
-		t.Errorf("NewProber for unsupported PingSpec should have returned nil")
+	if _, ok := p2.(*PingProber); !ok {
+		t.Errorf("NewProber for PingSpec did not return a PingProber")
 	}
 }
 

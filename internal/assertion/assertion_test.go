@@ -145,3 +145,186 @@ func TestEvaluate_WithError(t *testing.T) {
 type someError struct{}
 
 func (someError) Error() string { return "some error" }
+
+// --- Additional Parse error paths -------------------------------------------
+
+func TestParse_IncompleteExpression(t *testing.T) {
+	tests := []string{
+		"response.status == ",
+		" == 200",
+		"",
+		"response.status",
+	}
+	for _, expr := range tests {
+		t.Run(expr, func(t *testing.T) {
+			_, err := Parse(expr)
+			if err == nil {
+				t.Errorf("expected error for %q, got nil", expr)
+			}
+		})
+	}
+}
+
+func TestParse_EmptyHeaderKey(t *testing.T) {
+	_, err := Parse(`response.headers[""] == "value"`)
+	if err == nil {
+		t.Fatal("expected error for empty header key, got nil")
+	}
+	if err.Error() != "header key must not be empty" {
+		t.Errorf("error = %v, want 'header key must not be empty'", err)
+	}
+}
+
+func TestParse_OrderedOpOnString(t *testing.T) {
+	tests := []string{
+		`response.body > "ok"`,
+		`response.headers["x"] < "val"`,
+		`response.body >= "ok"`,
+		`response.headers["x"] <= "val"`,
+	}
+	for _, expr := range tests {
+		t.Run(expr, func(t *testing.T) {
+			_, err := Parse(expr)
+			if err == nil {
+				t.Errorf("expected error for ordered op on string, got nil")
+			}
+		})
+	}
+}
+
+func TestParse_QuotedNumeric(t *testing.T) {
+	// "200" is a string literal, not numeric.
+	a, err := Parse(`response.body == "200"`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if a.kind != rhsString {
+		t.Errorf("expected rhsString kind, got %d", a.kind)
+	}
+	if a.str != "200" {
+		t.Errorf("str = %q, want 200", a.str)
+	}
+}
+
+func TestParse_FloatLiteral(t *testing.T) {
+	a, err := Parse("response.time == 12.5")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if a.num != 12 {
+		t.Errorf("num = %d, want 12 (truncated from 12.5)", a.num)
+	}
+}
+
+func TestParse_SingleQuoteString(t *testing.T) {
+	a, err := Parse(`response.body == 'hello world'`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if a.str != "hello world" {
+		t.Errorf("str = %q, want hello world", a.str)
+	}
+}
+
+func TestParse_UnclosedQuote(t *testing.T) {
+	_, err := Parse(`response.body == "unclosed`)
+	if err == nil {
+		t.Fatal("expected error for unclosed quote, got nil")
+	}
+}
+
+// --- Evaluate edge cases -----------------------------------------------------
+
+func TestEvaluate_UnknownField(t *testing.T) {
+	// Manually construct an assertion with an invalid field to test default branch.
+	a := &Assertion{raw: "x", field: 99, op: opEq, kind: rhsNumber, num: 1}
+	result := ProbeResult{Status: 200}
+	if a.Evaluate(result) {
+		t.Error("expected false for unknown field")
+	}
+}
+
+func TestEvaluate_StatusEq(t *testing.T) {
+	a := MustParse("response.status == 200")
+	if !a.Evaluate(ProbeResult{Status: 200}) {
+		t.Error("status 200 should match == 200")
+	}
+	if a.Evaluate(ProbeResult{Status: 500}) {
+		t.Error("status 500 should not match == 200")
+	}
+}
+
+func TestEvaluate_StatusGte(t *testing.T) {
+	a := MustParse("response.status >= 200")
+	if !a.Evaluate(ProbeResult{Status: 200}) {
+		t.Error("200 >= 200 should be true")
+	}
+	if !a.Evaluate(ProbeResult{Status: 201}) {
+		t.Error("201 >= 200 should be true")
+	}
+	if a.Evaluate(ProbeResult{Status: 199}) {
+		t.Error("199 >= 200 should be false")
+	}
+}
+
+func TestEvaluate_HeaderCaseInsensitive(t *testing.T) {
+	// Headers are stored with lowercase keys, but expression key is also lowercased.
+	a := MustParse(`response.headers["Content-Type"] == "text/html"`)
+	result := ProbeResult{
+		Headers: map[string]string{"content-type": "text/html"},
+	}
+	if !a.Evaluate(result) {
+		t.Error("header match should be case-insensitive")
+	}
+}
+
+func TestEvaluate_HeaderNotFound(t *testing.T) {
+	a := MustParse(`response.headers["x-custom"] == "value"`)
+	result := ProbeResult{
+		Headers: map[string]string{"content-type": "text/html"},
+	}
+	if a.Evaluate(result) {
+		t.Error("missing header should return false")
+	}
+}
+
+func TestEvaluate_BodyNe(t *testing.T) {
+	a := MustParse(`response.body != "error"`)
+	if !a.Evaluate(ProbeResult{Body: "ok"}) {
+		t.Error("body 'ok' should not equal 'error'")
+	}
+	if a.Evaluate(ProbeResult{Body: "error"}) {
+		t.Error("body 'error' should equal 'error' (!= should fail)")
+	}
+}
+
+func TestAssertion_String(t *testing.T) {
+	expr := "response.status == 200"
+	a := MustParse(expr)
+	if a.String() != expr {
+		t.Errorf("String() = %q, want %q", a.String(), expr)
+	}
+}
+
+// --- op String() -------------------------------------------------------------
+
+func TestOpString(t *testing.T) {
+	tests := []struct {
+		opVal op
+		want  string
+	}{
+		{opEq, "=="},
+		{opNe, "!="},
+		{opLt, "<"},
+		{opGt, ">"},
+		{opLte, "<="},
+		{opGte, ">="},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.opVal.String(); got != tt.want {
+				t.Errorf("op.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

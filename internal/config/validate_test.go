@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-func ptrSlice[T any](s ...T) *[]T { return &s }
-
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		name    string

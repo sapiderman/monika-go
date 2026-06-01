@@ -77,8 +77,8 @@ func (s *SocketSpec) Validate() error {
 
 type MongoDBSpec struct{ Targets []MongoDB }
 
-func (s *MongoDBSpec) Kind() ProbeKind     { return KindMongoDB }
-func (s *MongoDBSpec) Validate() error     { return nil }
+func (s *MongoDBSpec) Kind() ProbeKind { return KindMongoDB }
+func (s *MongoDBSpec) Validate() error { return nil }
 
 // --- RedisSpec ---------------------------------------------------------------
 
