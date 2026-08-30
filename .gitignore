@@ -65,3 +65,6 @@ monika-go
 .antigravity*
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,visualstudiocode,go
+
+# runtime artifacts
+monika-logs.db

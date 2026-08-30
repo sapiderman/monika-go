@@ -38,8 +38,7 @@ func (p *SocketProber) Probe(ctx context.Context) ([]RequestResult, error) {
 func (p *SocketProber) executeSocket(ctx context.Context, target config.Socket) (RequestResult, error) {
 	address := fmt.Sprintf("%s:%d", target.Host, target.Port)
 
-	// Default 10 seconds timeout per Monika specification
-	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	dialCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
 	var dialer net.Dialer

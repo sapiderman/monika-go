@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,7 +18,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cfgFile string
+var (
+	cfgFile     string
+	probeIDs    string
+	repeatCount int
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -30,6 +35,12 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("config: %w", err)
 		}
+		if probeIDs != "" {
+			if err := filterProbes(cfg, probeIDs); err != nil {
+				return fmt.Errorf("--id: %w", err)
+			}
+		}
+		cfg.Repeat = repeatCount
 		log.Info("config loaded", logger.F("source", cfgFile), logger.F("probes", len(cfg.Probes)))
 		return run(cfg, log)
 	},
@@ -69,12 +80,54 @@ func run(cfg *config.Config, log logger.Logger) error {
 
 	log.Info("scheduler started")
 
-	// Block until a shutdown signal is received
-	<-sigChan
+	// Block until shutdown is signaled or --repeat runs are exhausted
+	allDone := make(chan struct{})
+	go func() {
+		defer close(allDone)
+		sched.Wait()
+	}()
 
-	log.Info("shutdown signal received, stopping scheduler gracefully...")
+	select {
+	case <-sigChan:
+		log.Info("shutdown signal received, stopping scheduler gracefully...")
+	case <-allDone:
+		log.Info("all probes completed")
+	}
 	sched.Stop()
 
+	return nil
+}
+
+// filterProbes keeps only the probes whose IDs appear in the comma-separated
+// ids string, preserving config order. All referenced IDs must exist, per
+// reference Monika semantics.
+func filterProbes(cfg *config.Config, ids string) error {
+	wanted := make(map[string]bool)
+	var order []string
+	for _, id := range strings.Split(ids, ",") {
+		id = strings.TrimSpace(id)
+		if id != "" && !wanted[id] {
+			wanted[id] = true
+			order = append(order, id)
+		}
+	}
+	kept := make([]config.Probe, 0, len(order))
+	for _, p := range cfg.Probes {
+		if wanted[p.ID] {
+			kept = append(kept, p)
+			delete(wanted, p.ID)
+		}
+	}
+	if len(wanted) > 0 {
+		unknown := make([]string, 0, len(wanted))
+		for _, id := range order {
+			if wanted[id] {
+				unknown = append(unknown, id)
+			}
+		}
+		return fmt.Errorf("unknown probe id(s): %s", strings.Join(unknown, ", "))
+	}
+	cfg.Probes = kept
 	return nil
 }
 
@@ -83,6 +136,8 @@ func Execute() {
 	log := logger.New("root")
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "monika.yaml", "config file path")
+	rootCmd.PersistentFlags().StringVarP(&probeIDs, "id", "i", "", "comma-separated probe IDs to run (e.g. 1,3)")
+	rootCmd.PersistentFlags().IntVarP(&repeatCount, "repeat", "r", 0, "number of times to run each probe before exiting (default: forever)")
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Error("fatal", logger.Err(err))

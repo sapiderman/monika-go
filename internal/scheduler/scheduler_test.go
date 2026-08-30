@@ -12,6 +12,7 @@ import (
 	"monika-go/internal/alert"
 	"monika-go/internal/assertion"
 	"monika-go/internal/config"
+	"monika-go/internal/logger"
 	"monika-go/internal/logger/loggertest"
 )
 
@@ -80,12 +81,14 @@ func TestScheduler_StartStop(t *testing.T) {
 	// Verify scheduler logs
 	entries := captureLog.Entries()
 	var foundStart, foundComp bool
+	var completedEntry loggertest.CaptureEntry
 	for _, entry := range entries {
 		if entry.Msg == "starting scheduler" {
 			foundStart = true
 		}
 		if entry.Msg == "probe completed" {
 			foundComp = true
+			completedEntry = entry
 		}
 	}
 
@@ -94,6 +97,38 @@ func TestScheduler_StartStop(t *testing.T) {
 	}
 	if !foundComp {
 		t.Error("expected log message 'probe completed' not found")
+	}
+
+	// Verify the completed entry carries base URL + status per request.
+	summary, ok := fieldsOf(completedEntry.Fields)["requests"].([]requestLog)
+	if !ok {
+		t.Fatalf("expected 'requests' field, got %v", fieldsOf(completedEntry.Fields)["requests"])
+	}
+	if len(summary) != 1 || summary[0].URL != baseURL(server.URL) || summary[0].Status != http.StatusOK {
+		t.Errorf("unexpected request summary: %+v", summary)
+	}
+}
+
+func fieldsOf(fields []logger.Field) map[string]any {
+	m := make(map[string]any, len(fields))
+	for _, f := range fields {
+		m[f.Key] = f.Value
+	}
+	return m
+}
+
+func TestBaseURL(t *testing.T) {
+	tests := []struct {
+		name, raw, want string
+	}{
+		{"trims path and query", "https://www.google.com/search?q=x&lang=en", "https://www.google.com"},
+		{"keeps port", "http://localhost:8080/api/health", "http://localhost:8080"},
+		{"no path", "https://example.com", "https://example.com"},
+	}
+	for _, tt := range tests {
+		if got := baseURL(tt.raw); got != tt.want {
+			t.Errorf("%s: baseURL(%q) = %q, want %q", tt.name, tt.raw, got, tt.want)
+		}
 	}
 }
 
@@ -511,3 +546,41 @@ type unsupportedDummySpec struct{}
 
 func (s *unsupportedDummySpec) Kind() config.ProbeKind { return "unsupported-dummy" }
 func (s *unsupportedDummySpec) Validate() error        { return nil }
+
+func TestScheduler_RepeatExits(t *testing.T) {
+	var requestCount int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&requestCount, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{
+		Repeat: 2,
+		Probes: []config.Probe{
+			{ID: "repeat-test", Interval: 1, Spec: &config.HTTPSpec{Requests: []config.Request{{URL: server.URL}}}},
+		},
+	}
+	s := New(cfg, loggertest.NopLogger{})
+
+	if err := s.Start(context.Background()); err != nil {
+		t.Fatalf("failed to start scheduler: %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		s.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("scheduler did not exit after reaching repeat count")
+	}
+
+	if got := atomic.LoadInt32(&requestCount); got != 2 {
+		t.Errorf("expected exactly 2 probe runs, got %d", got)
+	}
+	s.Stop()
+}

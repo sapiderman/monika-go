@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"net/url"
 	"sync"
 	"time"
 
@@ -69,6 +70,9 @@ func (s *Scheduler) Stop() {
 	s.log.Info("scheduler stopped")
 }
 
+// Wait blocks until all probe loops have finished on their own (e.g. --repeat exhausted).
+func (s *Scheduler) Wait() { s.wg.Wait() }
+
 // runProbeLoop runs an individual probe periodically based on its configured interval.
 func (s *Scheduler) runProbeLoop(ctx context.Context, p config.Probe) {
 	interval := p.Interval
@@ -84,13 +88,19 @@ func (s *Scheduler) runProbeLoop(ctx context.Context, p config.Probe) {
 	// Run the first probe immediately instead of waiting a full interval.
 	s.executeProbe(ctx, p)
 
+	runs := 1
 	for {
+		if s.cfg.Repeat > 0 && runs >= s.cfg.Repeat {
+			s.log.Info("probe finished", logger.F("probe_id", p.ID), logger.F("runs", runs))
+			return
+		}
 		select {
 		case <-ctx.Done():
 			s.log.Info("stopping probe loop", logger.F("probe_id", p.ID))
 			return
 		case <-ticker.C:
 			s.executeProbe(ctx, p)
+			runs++
 		}
 	}
 }
@@ -121,7 +131,16 @@ func (s *Scheduler) executeProbe(ctx context.Context, p config.Probe) {
 		return
 	}
 
-	s.log.Info("probe completed", logger.F("probe_id", p.ID), logger.F("duration_ms", duration), logger.F("results_count", len(results)))
+	requestSummary := buildRequestSummary(p.Spec, results)
+	fields := []logger.Field{
+		logger.F("probe_id", p.ID),
+		logger.F("duration_ms", duration),
+		logger.F("results_count", len(results)),
+	}
+	if requestSummary != nil {
+		fields = append(fields, logger.F("requests", requestSummary))
+	}
+	s.log.Info("probe completed", fields...)
 
 	runSuccess := true
 	for i, res := range results {
@@ -162,4 +181,37 @@ func (s *Scheduler) executeProbe(ctx context.Context, p config.Probe) {
 	} else if event != nil {
 		s.alertManager.PublishTransition(*event)
 	}
+}
+
+// requestLog summarizes one executed HTTP request for logging.
+type requestLog struct {
+	URL    string `json:"url"`
+	Status int    `json:"status"`
+}
+
+// buildRequestSummary pairs each executed request's base URL (scheme://host)
+// with its HTTP status. Results are index-aligned with the spec's requests,
+// since the chain runs in order and stops early. Non-HTTP probes return nil.
+func buildRequestSummary(spec config.ProbeSpec, results []prober.RequestResult) []requestLog {
+	httpSpec, ok := spec.(*config.HTTPSpec)
+	if !ok {
+		return nil
+	}
+	summary := make([]requestLog, 0, len(results))
+	for i := range results {
+		summary = append(summary, requestLog{
+			URL:    baseURL(httpSpec.Requests[i].URL),
+			Status: results[i].Result.Status,
+		})
+	}
+	return summary
+}
+
+// baseURL reduces a URL to scheme://host, e.g. https://www.google.com.
+func baseURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return raw
+	}
+	return u.Scheme + "://" + u.Host
 }

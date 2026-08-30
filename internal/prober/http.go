@@ -16,6 +16,9 @@ import (
 	"monika-go/internal/config"
 )
 
+// defaultTimeout is the Monika-spec default applied when no explicit timeout is configured.
+const defaultTimeout = 10 * time.Second
+
 // HTTPProber executes a chain of HTTP requests specified in config.HTTPSpec.
 type HTTPProber struct {
 	spec *config.HTTPSpec
@@ -93,6 +96,15 @@ func createHTTPClient(req config.Request) (*http.Client, func()) {
 	return client, tr.CloseIdleConnections
 }
 
+// requestTimeout converts a config timeout in milliseconds into a duration,
+// falling back to the 10s Monika default when unset or non-positive.
+func requestTimeout(ms int) time.Duration {
+	if ms > 0 {
+		return time.Duration(ms) * time.Millisecond
+	}
+	return defaultTimeout
+}
+
 func (p *HTTPProber) executeRequest(ctx context.Context, req config.Request) (RequestResult, error) {
 	method := req.Method
 	if method == "" {
@@ -101,13 +113,9 @@ func (p *HTTPProber) executeRequest(ctx context.Context, req config.Request) (Re
 
 	bodyReader, contentType := prepareBody(req)
 
-	// Handle tighter request timeout
-	reqCtx := ctx
-	if req.Timeout > 0 {
-		var cancel context.CancelFunc
-		reqCtx, cancel = context.WithTimeout(ctx, time.Duration(req.Timeout)*time.Millisecond)
-		defer cancel()
-	}
+	// Request timeout: explicit value in ms, otherwise the 10s Monika default.
+	reqCtx, cancel := context.WithTimeout(ctx, requestTimeout(req.Timeout))
+	defer cancel()
 
 	httpReq, err := http.NewRequestWithContext(reqCtx, method, req.URL, bodyReader)
 	if err != nil {

@@ -44,8 +44,7 @@ func (p *PingProber) executePing(ctx context.Context, target config.Ping) (Reque
 		return RequestResult{}, fmt.Errorf("empty host for target %q: %w", target.URI, ErrConnection)
 	}
 
-	// Default 10 seconds timeout per Monika specification
-	reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	reqCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
 	var cmdName = "ping"

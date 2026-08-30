@@ -6,6 +6,10 @@ import "monika-go/internal/assertion"
 type Config struct {
 	Probes        []Probe        `yaml:"probes"`
 	Notifications []Notification `yaml:"notifications"`
+
+	// Repeat bounds how many times each probe runs before the scheduler exits.
+	// Set by the --repeat CLI flag; 0 runs forever. Not a YAML field.
+	Repeat int `yaml:"-"`
 }
 
 // Probe represents a single monitoring target.

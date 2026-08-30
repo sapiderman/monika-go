@@ -169,3 +169,39 @@ func TestRootCmd_RunE_ConfigFileNotFound(t *testing.T) {
 		t.Error("expected error for missing config file, got nil")
 	}
 }
+
+// --- filterProbes ------------------------------------------------------------
+
+func TestFilterProbes(t *testing.T) {
+	base := func() *config.Config {
+		return &config.Config{Probes: []config.Probe{{ID: "p1"}, {ID: "p2"}, {ID: "p3"}}}
+	}
+
+	t.Run("keeps listed probes in config order", func(t *testing.T) {
+		cfg := base()
+		if err := filterProbes(cfg, "p3, p1"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(cfg.Probes) != 2 || cfg.Probes[0].ID != "p1" || cfg.Probes[1].ID != "p3" {
+			t.Errorf("unexpected probes: %+v", cfg.Probes)
+		}
+	})
+
+	t.Run("unknown id fails", func(t *testing.T) {
+		cfg := base()
+		err := filterProbes(cfg, "p1,nope")
+		if err == nil || !strings.Contains(err.Error(), "nope") {
+			t.Errorf("expected unknown-id error mentioning 'nope', got %v", err)
+		}
+	})
+
+	t.Run("duplicate ids are allowed", func(t *testing.T) {
+		cfg := base()
+		if err := filterProbes(cfg, "p2,p2"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(cfg.Probes) != 1 || cfg.Probes[0].ID != "p2" {
+			t.Errorf("unexpected probes: %+v", cfg.Probes)
+		}
+	})
+}

@@ -167,7 +167,7 @@ func (d *DBProber) probeMySQL(ctx context.Context) ([]RequestResult, error) {
 func (d *DBProber) checkTCP(ctx context.Context, host string, port int, dbName string) RequestResult {
 	address := fmt.Sprintf("%s:%d", host, port)
 
-	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	dialCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
 	var dialer net.Dialer

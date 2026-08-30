@@ -321,6 +321,23 @@ func TestHTTPProber_Timeout(t *testing.T) {
 			t.Errorf("got error %v, want %v", res.Result.Err, ErrTimeout)
 		}
 	})
+
+	t.Run("requestTimeout falls back to 10s default when unset", func(t *testing.T) {
+		tests := []struct {
+			name string
+			ms   int
+			want time.Duration
+		}{
+			{"unset", 0, 10 * time.Second},
+			{"negative", -5, 10 * time.Second},
+			{"explicit", 5000, 5 * time.Second},
+		}
+		for _, tt := range tests {
+			if got := requestTimeout(tt.ms); got != tt.want {
+				t.Errorf("%s: requestTimeout(%d) = %v, want %v", tt.name, tt.ms, got, tt.want)
+			}
+		}
+	})
 }
 
 func TestHTTPProber_TLS(t *testing.T) {
