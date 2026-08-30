@@ -28,6 +28,8 @@ func NewNotifier(cfg config.Notification, log logger.Logger) (Notifier, error) {
 		return NewSMTPNotifier(cfg.ID, cfg.Data, log)
 	case "webhook":
 		return NewWebhookNotifier(cfg.ID, cfg.Data, log)
+	case "slack":
+		return NewSlackNotifier(cfg.ID, cfg.Data, log)
 	default:
 		return nil, fmt.Errorf("unsupported notification type: %q", cfg.Type)
 	}

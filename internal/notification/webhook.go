@@ -66,7 +66,7 @@ type WebhookPayload struct {
 
 // Notify triggers the HTTP request carrying transition JSON data. Safe with contexts.
 func (w *webhookNotifier) Notify(ctx context.Context, event alert.TransitionEvent) error {
-	w.log.Info("dispatching webhook notification", logger.F("probe_id", event.ProbeID), logger.F("url", w.url))
+	w.log.Info("dispatching webhook notification", logger.F("probe_id", event.ProbeID))
 
 	payload := WebhookPayload{
 		ProbeID:   event.ProbeID,

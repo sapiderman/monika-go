@@ -81,6 +81,9 @@ func (s *Scheduler) runProbeLoop(ctx context.Context, p config.Probe) {
 
 	s.log.Info("starting probe loop", logger.F("probe_id", p.ID), logger.F("interval_seconds", interval))
 
+	// Run the first probe immediately instead of waiting a full interval.
+	s.executeProbe(ctx, p)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -130,6 +133,23 @@ func (s *Scheduler) executeProbe(ctx context.Context, p config.Probe) {
 					logger.F("request_index", i),
 					logger.F("assertion", fa.Assertion),
 					logger.F("message", fa.Message),
+				)
+			}
+		}
+
+		// Probe-level alerts apply to every request result.
+		for _, pa := range p.Alerts {
+			if pa.Assertion == nil {
+				continue
+			}
+			if !pa.Assertion.Evaluate(res.Result) {
+				runSuccess = false
+				s.log.Warn("probe alert failed",
+					logger.F("probe_id", p.ID),
+					logger.F("level", "probe"),
+					logger.F("request_index", i),
+					logger.F("assertion", pa.Assertion.String()),
+					logger.F("message", pa.Message),
 				)
 			}
 		}

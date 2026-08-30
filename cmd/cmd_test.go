@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -112,20 +113,31 @@ func TestVersionCmd_Output(t *testing.T) {
 // --- CreateConfig command output ---------------------------------------------
 
 func TestCreateConfigCmd_Output(t *testing.T) {
-	orig := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	dir := t.TempDir()
+	out := filepath.Join(dir, "monika.yaml")
+	if err := createConfigCmd.Flags().Set("out", out); err != nil {
+		t.Fatalf("failed to set --out flag: %v", err)
+	}
 
-	createConfigCmd.Run(createConfigCmd, nil)
+	// First run writes the file.
+	if err := createConfigCmd.RunE(createConfigCmd, nil); err != nil {
+		t.Fatalf("createConfig failed: %v", err)
+	}
 
-	w.Close()
-	os.Stdout = orig
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("expected config file at %s: %v", out, err)
+	}
+	if len(data) == 0 {
+		t.Error("expected non-empty config file")
+	}
+	if !strings.Contains(string(data), "probes:") {
+		t.Errorf("expected config file to contain 'probes:', got %q", string(data))
+	}
 
-	var buf bytes.Buffer
-	buf.ReadFrom(r)
-	output := strings.TrimSpace(buf.String())
-	if output != "createConfig called" {
-		t.Errorf("expected 'createConfig called', got %q", output)
+	// Second run must refuse to overwrite.
+	if err := createConfigCmd.RunE(createConfigCmd, nil); err == nil {
+		t.Error("expected error when output file already exists, got nil")
 	}
 }
 

@@ -160,6 +160,54 @@ func TestValidate(t *testing.T) {
 			},
 			wantErr: "notification at index 0: id is required",
 		},
+		{
+			name: "smtp notification missing hostname",
+			config: Config{
+				Probes:        []Probe{{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}}},
+				Notifications: []Notification{{ID: "n1", Type: "smtp", Data: map[string]any{"recipients": []any{"a@b.com"}}}},
+			},
+			wantErr: `notification "n1": smtp requires a non-empty "hostname" string`,
+		},
+		{
+			name: "smtp notification empty recipients",
+			config: Config{
+				Probes:        []Probe{{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}}},
+				Notifications: []Notification{{ID: "n1", Type: "smtp", Data: map[string]any{"recipients": []any{}, "hostname": "smtp.example.com"}}},
+			},
+			wantErr: `notification "n1": smtp requires a non-empty "recipients" list`,
+		},
+		{
+			name: "webhook notification missing url",
+			config: Config{
+				Probes:        []Probe{{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}}},
+				Notifications: []Notification{{ID: "n1", Type: "webhook", Data: map[string]any{"method": "POST"}}},
+			},
+			wantErr: `notification "n1": webhook requires a non-empty "url" string`,
+		},
+		{
+			name: "slack notification missing url",
+			config: Config{
+				Probes:        []Probe{{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}}},
+				Notifications: []Notification{{ID: "n1", Type: "slack", Data: map[string]any{"method": "POST"}}},
+			},
+			wantErr: `notification "n1": slack requires a non-empty "url" string`,
+		},
+		{
+			name: "valid slack notification with url",
+			config: Config{
+				Probes:        []Probe{{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}}},
+				Notifications: []Notification{{ID: "n1", Type: "slack", Data: map[string]any{"url": "https://hooks.slack.com/services/T000/B000/XXXX"}}},
+			},
+			wantErr: "",
+		},
+		{
+			name: "valid desktop notification without data",
+			config: Config{
+				Probes:        []Probe{{ID: "1", Spec: &HTTPSpec{Requests: []Request{{URL: "http://a.com"}}}}},
+				Notifications: []Notification{{ID: "n1", Type: "desktop"}},
+			},
+			wantErr: "",
+		},
 	}
 
 	for _, tt := range tests {

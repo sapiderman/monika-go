@@ -16,6 +16,7 @@ type smtpNotifier struct {
 	port       int
 	username   string
 	password   string
+	html       bool
 	log        logger.Logger
 }
 
@@ -67,6 +68,9 @@ func NewSMTPNotifier(id string, data map[string]any, log logger.Logger) (Notifie
 	if pass, ok := data["password"].(string); ok {
 		n.password = pass
 	}
+	if html, ok := data["html"].(bool); ok {
+		n.html = html
+	}
 
 	return n, nil
 }
@@ -79,7 +83,11 @@ func (s *smtpNotifier) Notify(ctx context.Context, event alert.TransitionEvent) 
 	s.log.Info("dispatching SMTP email alert", logger.F("probe_id", event.ProbeID), logger.F("recipients", len(s.recipients)))
 
 	subject := fmt.Sprintf("Subject: Monika-Go Alert: %s (%s)\r\n", event.ProbeID, event.ToState)
-	mime := "MIME-version: 1.0;\r\nContent-Type: text/plain; charset=\"UTF-8\";\r\n\r\n"
+	contentType := "text/plain"
+	if s.html {
+		contentType = "text/html"
+	}
+	mime := fmt.Sprintf("MIME-version: 1.0;\r\nContent-Type: %s; charset=\"UTF-8\";\r\n\r\n", contentType)
 	body := fmt.Sprintf("Probe Status Changed!\r\n\r\nProbe ID: %s\r\nFrom State: %s\r\nTo State: %s\r\nMessage: %s\r\n",
 		event.ProbeID, event.FromState, event.ToState, event.Message)
 
@@ -95,6 +103,7 @@ func (s *smtpNotifier) Notify(ctx context.Context, event alert.TransitionEvent) 
 		errChan <- smtp.SendMail(addr, auth, s.username, s.recipients, msg)
 	}()
 
+	// ponytail: ctx timeout is best-effort — net/smtp ignores context; upgrade to net.Dialer + smtp.NewClient if SMTP hangs in practice.
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

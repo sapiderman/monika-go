@@ -4,24 +4,13 @@ import (
 	"fmt"
 )
 
+// Only types implemented by notification.NewNotifier belong here; add a type
+// when the factory implements it (reference Monika supports more channels).
 var knownNotificationTypes = map[string]bool{
-	"smtp":         true,
-	"slack":        true,
-	"webhook":      true,
-	"telegram":     true,
-	"discord":      true,
-	"teams":        true,
-	"lark":         true,
-	"mailgun":      true,
-	"sendgrid":     true,
-	"instatus":     true,
-	"opsgenie":     true,
-	"pushover":     true,
-	"workplace":    true,
-	"dingtalk":     true,
-	"monika-notif": true,
-	"whatsapp":     true,
-	"desktop":      true, // native OS notification
+	"smtp":    true,
+	"slack":   true,
+	"webhook": true,
+	"desktop": true, // native OS notification
 }
 
 // Validate checks a Config for semantic errors.
@@ -64,7 +53,42 @@ func Validate(cfg *Config) error {
 		if !knownNotificationTypes[n.Type] {
 			return fmt.Errorf("notification %q: unknown type %q", n.ID, n.Type)
 		}
+		if err := validateNotificationData(n); err != nil {
+			return err
+		}
 	}
 
+	return nil
+}
+
+// validateNotificationData checks required Data fields per notification type.
+// Presence/non-empty only — the notifier constructors do the deep parsing.
+func validateNotificationData(n Notification) error {
+	switch n.Type {
+	case "smtp":
+		switch recs := n.Data["recipients"].(type) {
+		case []any:
+			if len(recs) == 0 {
+				return fmt.Errorf("notification %q: smtp requires a non-empty \"recipients\" list", n.ID)
+			}
+		case []string:
+			if len(recs) == 0 {
+				return fmt.Errorf("notification %q: smtp requires a non-empty \"recipients\" list", n.ID)
+			}
+		default:
+			return fmt.Errorf("notification %q: smtp requires a non-empty \"recipients\" list", n.ID)
+		}
+		if host, ok := n.Data["hostname"].(string); !ok || host == "" {
+			return fmt.Errorf("notification %q: smtp requires a non-empty \"hostname\" string", n.ID)
+		}
+	case "webhook":
+		if url, ok := n.Data["url"].(string); !ok || url == "" {
+			return fmt.Errorf("notification %q: webhook requires a non-empty \"url\" string", n.ID)
+		}
+	case "slack":
+		if url, ok := n.Data["url"].(string); !ok || url == "" {
+			return fmt.Errorf("notification %q: slack requires a non-empty \"url\" string", n.ID)
+		}
+	}
 	return nil
 }
