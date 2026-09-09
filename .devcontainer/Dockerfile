@@ -1,4 +1,4 @@
-ARG VARIANT=1.26-bookworm
+ARG VARIANT=1.27-bookworm
 FROM golang:${VARIANT}
 
 # [Optional] Uncomment the next line to use go get to install anything else you need
