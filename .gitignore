@@ -59,7 +59,7 @@ go.work
 .ionide
 
 ## ignore image
-monika-go
+/monika-go
 
 # ignore agy
 .antigravity*
