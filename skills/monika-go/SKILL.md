@@ -51,12 +51,12 @@ probes:
             message: API too slow
 ```
 
-- **HTTP**: `requests:` list (checked in order; a failed request short-circuits the chain). Assertions: `response.status`, `response.time` (ms), comparison `== != > < >= <=`.
+- **HTTP**: `requests:` list (checked in order; a failed request short-circuits the chain). Assertions: `response.status`, `response.time` (ms), `response.size`, `response.body`, `response.headers["key"]`; comparisons `== != > < >= <=`.
 - **Ping (ICMP)**: `ping: [{uri: https://example.com}]`
-- **TCP socket**: `socket: [{host: example.com, port: 443, data: optional-payload}]`
-- **Databases**: `redis:` / `mongo:` / `postgres:` / `mysql:` / `mariadb:` — each `{host, port, username, password}` (redis/mongo also `uri`, postgres/mysql/mariadb also `database`).
+- **TCP socket**: `socket: [{host: example.com, port: 443, data: ping}]` — `host`, `port`, and `data` are all required.
+- **Databases**: `redis:` / `mongo:` / `postgres:` / `mysql:` / `mariadb:` — each `{host, port, username, password}`, all also accept `uri`; postgres/mysql/mariadb also `database`.
 
-Multiple request/alert blocks per probe are allowed; request-level `alerts` override probe-level `alerts`.
+Multiple request/alert blocks per probe are allowed. Request-level and probe-level `alerts` are both evaluated for every request; a failure in either fails the run.
 
 ### Notifications
 
@@ -92,4 +92,4 @@ Supported types: `slack`, `smtp`, `webhook`, `desktop`. Secrets belong in the co
 
 ## Reference config
 
-`monika.yaml` in the repo root documents every supported field with commented examples — consult it before inventing keys. Unsupported keys are ignored silently; when unsure of a field's existence, check this file or `internal/config/types.go`, not the original Node.js Monika docs.
+`monika.yaml` in the repo root documents every supported field with commented examples — consult it before inventing keys. Unknown keys are a hard parse error at startup (strict decoding); when unsure of a field's existence, check this file or `internal/config/types.go`, not the original Node.js Monika docs.

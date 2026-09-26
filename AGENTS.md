@@ -4,7 +4,7 @@ Synthetic monitoring tool: reads `monika.yaml`, probes targets on a schedule, al
 
 ## Stack
 
-Go 1.27 · cobra (CLI) · yaml.v3 · logrus (only `internal/logger` imports it) · testify.
+Go 1.27 · cobra (CLI) · yaml.v3 · logrus (only `internal/logger` imports it); tests use the stdlib `testing` package.
 
 ## Layout
 

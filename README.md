@@ -10,7 +10,7 @@ Reads a `monika.yaml` config, probes targets (HTTP, ping, socket, database) on a
 - [cobra](https://github.com/spf13/cobra) for the CLI
 - [yaml.v3](https://gopkg.in/yaml.v3) for configuration
 - [logrus](https://github.com/sirupsen/logrus) for structured logging
-- [testify](https://github.com/stretchr/testify) for tests
+- standard library `testing` for table-driven tests
 
 ## Build
 
