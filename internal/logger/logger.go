@@ -16,12 +16,20 @@ type Field struct {
 	Value any
 }
 
-// Typed constructors for the fields required by AGENTS.md.
+// F constructs a Field with the given key and value.
 func F(key string, value any) Field { return Field{key, value} }
-func Component(v string) Field      { return Field{"component", v} }
-func TraceID(v string) Field        { return Field{"trace_id", v} }
-func DurationMS(v float64) Field    { return Field{"duration_ms", v} }
-func Err(err error) Field           { return Field{"error", err} }
+
+// Component constructs a Field identifying the emitting component.
+func Component(v string) Field { return Field{"component", v} }
+
+// TraceID constructs a Field carrying a request/probe trace identifier.
+func TraceID(v string) Field { return Field{"trace_id", v} }
+
+// DurationMS constructs a Field carrying a duration in milliseconds.
+func DurationMS(v float64) Field { return Field{"duration_ms", v} }
+
+// Err constructs a Field carrying an error value.
+func Err(err error) Field { return Field{"error", err} }
 
 // Logger is the injectable structured logging interface.
 type Logger interface {

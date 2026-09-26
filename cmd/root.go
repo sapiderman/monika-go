@@ -1,3 +1,4 @@
+// Package cmd implements the monika-go command-line interface.
 package cmd
 
 import (

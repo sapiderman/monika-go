@@ -205,3 +205,24 @@ func TestFilterProbes(t *testing.T) {
 		}
 	})
 }
+
+func TestRun_BadNotifierContinues(t *testing.T) {
+	cfg := &config.Config{
+		Probes: []config.Probe{
+			{ID: "p1", Spec: &config.HTTPSpec{Requests: []config.Request{{URL: "https://example.com"}}}},
+		},
+		Notifications: []config.Notification{
+			{ID: "bad", Type: "smtp", Data: map[string]any{"hostname": "smtp.example.com"}}, // no recipients
+		},
+	}
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		p, _ := os.FindProcess(os.Getpid())
+		_ = p.Signal(syscall.SIGINT)
+	}()
+
+	// A notifier that fails to initialize is logged and skipped; run must proceed.
+	if err := run(cfg, logger.New("test")); err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}

@@ -124,6 +124,9 @@ func TestBaseURL(t *testing.T) {
 		{"trims path and query", "https://www.google.com/search?q=x&lang=en", "https://www.google.com"},
 		{"keeps port", "http://localhost:8080/api/health", "http://localhost:8080"},
 		{"no path", "https://example.com", "https://example.com"},
+		{"no scheme falls back to raw", "localhost:8080", "localhost:8080"}, // parses as scheme only, host empty
+		{"unparseable falls back to raw", "http://[::1", "http://[::1"},
+		{"empty", "", ""},
 	}
 	for _, tt := range tests {
 		if got := baseURL(tt.raw); got != tt.want {

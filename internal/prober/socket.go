@@ -44,7 +44,7 @@ func (p *SocketProber) executeSocket(ctx context.Context, target config.Socket) 
 	var dialer net.Dialer
 	start := time.Now()
 	conn, err := dialer.DialContext(dialCtx, "tcp", address)
-	duration := time.Since(start).Milliseconds()
+	duration := max(time.Since(start).Milliseconds(), 1) // floor 1ms: sub-ms success must not report 0
 
 	var probeResult assertion.ProbeResult
 

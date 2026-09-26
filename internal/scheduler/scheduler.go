@@ -1,3 +1,4 @@
+// Package scheduler runs probes concurrently on their configured intervals.
 package scheduler
 
 import (
@@ -116,7 +117,7 @@ func (s *Scheduler) executeProbe(ctx context.Context, p config.Probe) {
 	s.log.Debug("executing probe", logger.F("probe_id", p.ID))
 	start := time.Now()
 	results, err := pb.Probe(ctx)
-	duration := time.Since(start).Milliseconds()
+	duration := max(time.Since(start).Milliseconds(), 1) // floor 1ms: sub-ms success must not report 0
 
 	if err != nil {
 		s.log.Error("probe failed", logger.F("probe_id", p.ID), logger.Err(err), logger.F("duration_ms", duration))
