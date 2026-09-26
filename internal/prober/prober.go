@@ -1,3 +1,4 @@
+// Package prober implements probe checks: http, ping, socket, and database.
 package prober
 
 import (

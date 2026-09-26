@@ -550,3 +550,41 @@ func TestSMTPNotifier_HTMLContentType(t *testing.T) {
 		t.Error("expected Content-Type: text/html in message with html flag")
 	}
 }
+
+func TestSlackNotifier_IDType(t *testing.T) {
+	n, err := NewSlackNotifier("s1", map[string]any{"url": "https://hooks.slack.com/x"}, loggertest.NopLogger{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n.ID() != "s1" || n.Type() != "slack" {
+		t.Errorf("ID()=%q Type()=%q, want s1/slack", n.ID(), n.Type())
+	}
+}
+
+func TestNewSMTPNotifier_Validation(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    map[string]any
+		wantErr string
+	}{
+		{"no recipients", map[string]any{"hostname": "smtp.example.com"}, "recipients must not be empty"},
+		{"hostname not a string", map[string]any{"recipients": []any{"a@b.c"}, "hostname": 42}, "hostname must be a string"},
+		{"invalid port type", map[string]any{"recipients": []any{"a@b.c"}, "hostname": "h", "port": "587"}, "invalid port type"},
+		{"ok with float port from YAML", map[string]any{"recipients": []any{"a@b.c"}, "hostname": "h", "port": 587.0}, ""},
+		{"ok with []string recipients", map[string]any{"recipients": []string{"a@b.c"}, "hostname": "h"}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewSMTPNotifier("smtp-test", tt.data, loggertest.NopLogger{})
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("expected error containing %q, got: %v", tt.wantErr, err)
+			}
+		})
+	}
+}

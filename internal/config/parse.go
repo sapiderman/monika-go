@@ -1,3 +1,4 @@
+// Package config parses and validates monika.yaml into probe definitions.
 package config
 
 import (

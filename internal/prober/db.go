@@ -173,7 +173,7 @@ func (d *DBProber) checkTCP(ctx context.Context, host string, port int, dbName s
 	var dialer net.Dialer
 	start := time.Now()
 	conn, err := dialer.DialContext(dialCtx, "tcp", address)
-	duration := time.Since(start).Milliseconds()
+	duration := max(time.Since(start).Milliseconds(), 1) // floor 1ms: sub-ms success must not report 0
 
 	var probeResult assertion.ProbeResult
 

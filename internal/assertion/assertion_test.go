@@ -1,7 +1,12 @@
 //nolint:testpackage // needs to test internal/unexported components
 package assertion
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"gopkg.in/yaml.v3"
+)
 
 func TestParse(t *testing.T) {
 	tests := []struct {
@@ -307,6 +312,76 @@ func TestAssertion_String(t *testing.T) {
 }
 
 // --- op String() -------------------------------------------------------------
+
+func TestUnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr bool
+		want    string
+	}{
+		{"valid expression", "assertion: response.status == 200", false, "response.status == 200"},
+		{"invalid expression", "assertion: bogus", true, ""},
+		{"non-string node", "assertion:\n  a: b", true, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var a struct {
+				Assertion *Assertion `yaml:"assertion"`
+			}
+			err := yaml.Unmarshal([]byte(tt.yaml), &a)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if a.Assertion.String() != tt.want {
+				t.Errorf("Assertion.String() = %q, want %q", a.Assertion.String(), tt.want)
+			}
+		})
+	}
+}
+
+func TestParse_StringLiteralOnIntField(t *testing.T) {
+	_, err := Parse(`response.status == "ok"`)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "not valid for response.status") {
+		t.Errorf("expected field label in error, got: %v", err)
+	}
+}
+
+func TestCmpStr(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		op   op
+		rhs  string
+		want bool
+	}{
+		{"eq true", "a", opEq, "a", true},
+		{"eq false", "a", opEq, "b", false},
+		{"ne true", "a", opNe, "b", true},
+		{"ne false", "a", opNe, "a", false},
+		{"lt unsupported", "a", opLt, "b", false},
+		{"gt unsupported", "a", opGt, "b", false},
+		{"lte unsupported", "a", opLte, "b", false},
+		{"gte unsupported", "a", opGte, "b", false},
+		{"unknown op", "a", op(200), "a", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := cmpStr(tt.got, tt.op, tt.rhs); got != tt.want {
+				t.Errorf("cmpStr(%q, %v, %q) = %v, want %v", tt.got, tt.op, tt.rhs, got, tt.want)
+			}
+		})
+	}
+}
 
 func TestOpString(t *testing.T) {
 	tests := []struct {

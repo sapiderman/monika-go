@@ -1,3 +1,4 @@
+// Package notification delivers alert events to configured channels (slack, smtp, webhook, desktop).
 package notification
 
 import (

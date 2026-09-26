@@ -227,3 +227,37 @@ func TestValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateNotificationData(t *testing.T) {
+	tests := []struct {
+		name    string
+		n       Notification
+		wantErr string
+	}{
+		{"smtp ok", Notification{ID: "n", Type: "smtp", Data: map[string]any{"recipients": []any{"a@b.c"}, "hostname": "h"}}, ""},
+		{"smtp []string recipients ok", Notification{ID: "n", Type: "smtp", Data: map[string]any{"recipients": []string{"a@b.c"}, "hostname": "h"}}, ""},
+		{"smtp empty recipients", Notification{ID: "n", Type: "smtp", Data: map[string]any{"recipients": []any{}, "hostname": "h"}}, "recipients"},
+		{"smtp missing recipients", Notification{ID: "n", Type: "smtp", Data: map[string]any{"hostname": "h"}}, "recipients"},
+		{"smtp missing hostname", Notification{ID: "n", Type: "smtp", Data: map[string]any{"recipients": []any{"a@b.c"}}}, "hostname"},
+		{"webhook ok", Notification{ID: "n", Type: "webhook", Data: map[string]any{"url": "https://h"}}, ""},
+		{"webhook missing url", Notification{ID: "n", Type: "webhook"}, "url"},
+		{"slack ok", Notification{ID: "n", Type: "slack", Data: map[string]any{"url": "https://h"}}, ""},
+		{"slack missing url", Notification{ID: "n", Type: "slack"}, "url"},
+		{"desktop needs nothing", Notification{ID: "n", Type: "desktop"}, ""},
+		{"unknown type needs nothing", Notification{ID: "n", Type: "pager"}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNotificationData(tt.n)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("expected error containing %q, got: %v", tt.wantErr, err)
+			}
+		})
+	}
+}

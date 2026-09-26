@@ -1,3 +1,4 @@
+// Package alert tracks probe health and manages the incident/recovery lifecycle.
 package alert
 
 import (

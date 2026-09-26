@@ -135,7 +135,7 @@ func (p *HTTPProber) executeRequest(ctx context.Context, req config.Request) (Re
 
 	start := time.Now()
 	resp, err := client.Do(httpReq)
-	duration := time.Since(start).Milliseconds()
+	duration := max(time.Since(start).Milliseconds(), 1) // floor 1ms: sub-ms success must not report 0
 
 	var probeResult assertion.ProbeResult
 

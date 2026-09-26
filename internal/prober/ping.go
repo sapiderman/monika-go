@@ -58,7 +58,7 @@ func (p *PingProber) executePing(ctx context.Context, target config.Ping) (Reque
 	start := time.Now()
 	cmd := exec.CommandContext(reqCtx, cmdName, cmdArgs...)
 	output, err := cmd.CombinedOutput()
-	duration := time.Since(start).Milliseconds()
+	duration := max(time.Since(start).Milliseconds(), 1) // floor 1ms: sub-ms success must not report 0
 
 	var probeResult assertion.ProbeResult
 

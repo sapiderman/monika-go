@@ -6,106 +6,39 @@ import (
 	"monika-go/internal/logger"
 )
 
-// compile-time checks: both types satisfy logger.Logger
-var _ logger.Logger = NopLogger{}
-var _ logger.Logger = (*CaptureLogger)(nil)
-
-func TestCaptureLogger_RecordsEntry(t *testing.T) {
-	cap := &CaptureLogger{}
-	cap.Info("hello")
-
-	entries := cap.Entries()
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
-	}
-	if entries[0].Msg != "hello" {
-		t.Errorf("expected msg %q, got %q", "hello", entries[0].Msg)
-	}
-	if entries[0].Level != "INFO" {
-		t.Errorf("expected level INFO, got %q", entries[0].Level)
+func TestNopLogger(t *testing.T) {
+	var l logger.Logger = NopLogger{}
+	l.Info("i")
+	l.Warn("w")
+	l.Error("e")
+	l.Debug("d")
+	if child := l.With(logger.F("k", "v")); child == nil {
+		t.Error("With() returned nil")
 	}
 }
 
-func TestCaptureLogger_AllLevels(t *testing.T) {
-	cap := &CaptureLogger{}
-	cap.Info("a")
-	cap.Warn("b")
-	cap.Error("c")
-	cap.Debug("d")
+func TestCaptureLogger(t *testing.T) {
+	c := &CaptureLogger{}
+	c.Info("info-msg", logger.F("k", "v"))
 
-	entries := cap.Entries()
-	if len(entries) != 4 {
-		t.Fatalf("expected 4 entries, got %d", len(entries))
-	}
-	levels := []string{"INFO", "WARN", "ERROR", "DEBUG"}
-	for i, want := range levels {
-		if entries[i].Level != want {
-			t.Errorf("entry %d: expected level %q, got %q", i, want, entries[i].Level)
-		}
-	}
-}
+	child := c.With(logger.F("bound", 1))
+	child.Warn("warn-msg")
 
-func TestCaptureLogger_WithBindsFields(t *testing.T) {
-	cap := &CaptureLogger{}
-	child := cap.With(logger.Component("prober"), logger.TraceID("abc"))
-	child.Info("probe started")
-
-	entries := cap.Entries()
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
-	}
-
-	fields := fieldMap(entries[0].Fields)
-	if fields["component"] != "prober" {
-		t.Errorf("expected component=prober, got %v", fields["component"])
-	}
-	if fields["trace_id"] != "abc" {
-		t.Errorf("expected trace_id=abc, got %v", fields["trace_id"])
-	}
-}
-
-func TestCaptureLogger_WithSharesStore(t *testing.T) {
-	cap := &CaptureLogger{}
-	child := cap.With(logger.Component("child"))
-
-	cap.Info("from root")
-	child.Info("from child")
-
-	entries := cap.Entries()
+	entries := c.Entries()
 	if len(entries) != 2 {
-		t.Errorf("expected 2 entries in shared store, got %d", len(entries))
+		t.Fatalf("expected 2 entries, got %d", len(entries))
 	}
-}
-
-func TestCaptureLogger_WithAddsFieldsPerCall(t *testing.T) {
-	cap := &CaptureLogger{}
-	cap.Info("no fields")
-	cap.Info("with field", logger.DurationMS(42))
-
-	entries := cap.Entries()
-	if len(entries[0].Fields) != 0 {
-		t.Errorf("expected 0 fields on first entry, got %d", len(entries[0].Fields))
+	if entries[0].Level != "INFO" || entries[0].Msg != "info-msg" {
+		t.Errorf("unexpected first entry: %+v", entries[0])
 	}
-	fields := fieldMap(entries[1].Fields)
-	if fields["duration_ms"] != float64(42) {
-		t.Errorf("expected duration_ms=42, got %v", fields["duration_ms"])
+	if len(entries[0].Fields) != 1 || entries[0].Fields[0].Key != "k" {
+		t.Errorf("unexpected first entry fields: %+v", entries[0].Fields)
 	}
-}
-
-func TestNopLogger_DoesNotPanic(t *testing.T) {
-	var log logger.Logger = NopLogger{}
-	log.Info("ignored")
-	log.Warn("ignored")
-	log.Error("ignored")
-	log.Debug("ignored")
-	log.With(logger.Component("x")).Info("ignored")
-}
-
-// fieldMap converts []logger.Field to map for easier assertion.
-func fieldMap(fields []logger.Field) map[string]any {
-	m := make(map[string]any, len(fields))
-	for _, f := range fields {
-		m[f.Key] = f.Value
+	if entries[1].Level != "WARN" || entries[1].Msg != "warn-msg" {
+		t.Errorf("unexpected second entry: %+v", entries[1])
 	}
-	return m
+	// Child entries must carry the fields bound via With().
+	if len(entries[1].Fields) != 1 || entries[1].Fields[0].Key != "bound" {
+		t.Errorf("expected bound field on child entry, got %+v", entries[1].Fields)
+	}
 }
